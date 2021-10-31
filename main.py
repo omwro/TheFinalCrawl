@@ -10,7 +10,7 @@ has_found_new_product = False
 
 
 def main():
-    notify_discord_log("Starting up THE FINAL CRAWL!")
+    notify_discord_main("Starting up THE FINAL CRAWL!")
     product_handles = pd.read_csv('product-handles.csv')['handle']
 
     while True:
@@ -22,7 +22,8 @@ def main():
 
         df_products.apply(lambda p: check_stock(p), axis=1)
         end_time = time.time() - start_time
-        notify_discord_log("[{}] Check completed in {}ms".format(time.strftime("%H:%M:%S"), int(round(end_time, 3) * 1_000)))
+        notify_discord_log(
+            "Check completed in {}ms".format(int(round(end_time, 3) * 1_000)))
         time.sleep(5)
 
 
@@ -35,26 +36,37 @@ def init():
 
 def check_stock(product):
     if product['variants']['available'].bool():
-        notify_discord("{} is IN STOCK at {}{}".format(product['title'], START_URL, product['handle']))
+        notify_discord_main("{} is IN STOCK at {}{}".format(product['title'], START_URL, product['handle']))
 
 
 def check_if_new_product(product_handles, product):
     if not product_handles.str.contains(product['handle']).any():
         global has_found_new_product
         has_found_new_product = True
-        notify_discord("Discovered a new product called {} at {}{}".format(product['title'], START_URL, product['handle']))
+        notify_discord_main(
+            "Discovered a new product called {} at {}{}".format(product['title'], START_URL, product['handle']))
 
 
-def notify_discord(message):
-    Webhook.from_url(DISCORD_WEBHOOK_URL, adapter=RequestsWebhookAdapter()).send(message)
+def notify_discord_main(message):
+    formatted_message = "[{}] {}".format(time.strftime("%H:%M:%S"), message)
+    Webhook \
+        .from_url(DISCORD_WEBHOOK_URL, adapter=RequestsWebhookAdapter()) \
+        .send(formatted_message)
+    notify_discord_log(message)
 
 
 def notify_discord_log(message):
-    Webhook.from_url(DISCORD_LOG_WEBHOOK_URL, adapter=RequestsWebhookAdapter()).send(message)
+    formatted_message = "[{}] {}".format(time.strftime("%H:%M:%S"), message)
+    print(formatted_message)
+    Webhook \
+        .from_url(DISCORD_LOG_WEBHOOK_URL, adapter=RequestsWebhookAdapter()) \
+        .send(formatted_message)
 
 
 if __name__ == "__main__":
     try:
         main()
+    except Exception as e:
+        notify_discord_main("EXCEPTION: {}".format(e))
     finally:
-        notify_discord_log("[{}] EXCEPTION OCCURRED!".format(time.strftime("%H:%M:%S")))
+        notify_discord_main("Shutting down THE FINAL CRAWL!")
